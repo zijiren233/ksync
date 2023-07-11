@@ -1,132 +1,75 @@
-/*
-Package kmutex is a synchronization primitive that allows locking individual
-resources by unique ID.
-
-Key + Mutex = Kmutex
-*/
 package kmutex
 
 import "sync"
 
-type Locker interface {
-	sync.Locker
-	TryLock() bool
+type kmutex struct {
+	l sync.Locker
+	m map[any]*klock
 }
 
-// Can be locked by unique ID
-type Kmutex struct {
-	l Locker
-	s map[interface{}]*klock
-}
-
-// klock is a per-key lock that conatins a sync.Cond to signal another
-// goroutine that the lock is available, a reference count of the number of
-// goroutines waiting for and using the lock, and a boolean to check if the
-// lock is already unlocked.
-//
-// It is necessary to use a separate condition variable for each key to ensure
-// that only a goroutine that is waiting for that key is awakened.
 type klock struct {
-	cond   *sync.Cond
-	locked bool
-	ref    uint64
+	lock *sync.Mutex
+	ln   uint64
 }
 
-// Create new Kmutex
-func New() *Kmutex {
-	l := sync.Mutex{}
-	return &Kmutex{
-		l: &l,
-		s: make(map[interface{}]*klock),
+func DefaultKmutex() *kmutex {
+	return &kmutex{
+		l: &sync.Mutex{},
+		m: make(map[any]*klock),
 	}
 }
 
-// Create new Kmutex with user provided lock
-func WithLock(l Locker) *Kmutex {
-	return &Kmutex{
-		l: l,
-		s: make(map[interface{}]*klock),
+func NewKmutex(locker ...sync.Locker) *kmutex {
+	km := DefaultKmutex()
+	for _, lock := range locker {
+		km.l = lock
 	}
+	return km
 }
 
-// Unlock Kmutex by unique ID
-func (km *Kmutex) Unlock(key interface{}) {
+func (km *kmutex) Unlock(key any) {
 	km.l.Lock()
 	defer km.l.Unlock()
-	kl, ok := km.s[key]
-	if !ok || !kl.locked {
-		panic("unlock of unlocked kmutex")
-	}
-	kl.ref--
-	if kl.ref == 0 {
-		delete(km.s, key)
-		return
-	}
-	kl.locked = false
-	kl.cond.Signal()
-}
-
-// Lock Kmutex by unique ID
-func (km *Kmutex) Lock(key interface{}) {
-	km.l.Lock()
-	defer km.l.Unlock()
-	kl, ok := km.s[key]
-	if !ok {
-		km.s[key] = &klock{
-			cond:   sync.NewCond(km.l),
-			locked: true,
-			ref:    1,
+	kl, ok := km.m[key]
+	if ok {
+		kl.ln--
+		if kl.ln == 0 {
+			delete(km.m, key)
 		}
-		return
+		kl.lock.Unlock()
 	}
-
-	kl.ref++
-	kl.cond.Wait()
-	// No need to check if locked, since signal only given on unlock and
-	// only delivered to one goroutine.
-	kl.locked = true
 }
 
-func (km *Kmutex) TryLock(key interface{}) bool {
+func (km *kmutex) Lock(key any) {
+	km.l.Lock()
+	kl, ok := km.m[key]
+	if !ok {
+		kl = &klock{
+			ln:   0,
+			lock: &sync.Mutex{},
+		}
+		km.m[key] = kl
+	}
+	kl.ln++
+	km.l.Unlock()
+
+	kl.lock.Lock()
+}
+
+func (km *kmutex) TryLock(key any) (ok bool) {
 	km.l.Lock()
 	defer km.l.Unlock()
-	_, ok := km.s[key]
+	kl, ok := km.m[key]
 	if !ok {
-		km.s[key] = &klock{
-			cond:   sync.NewCond(km.l),
-			locked: true,
-			ref:    1,
+		kl = &klock{
+			ln:   0,
+			lock: &sync.Mutex{},
 		}
-		return true
+		km.m[key] = kl
 	}
-	return false
-}
-
-// satisfy sync.Locker interface
-type locker struct {
-	km  *Kmutex
-	key interface{}
-}
-
-// Lock this locker. If already locked, Lock blocks until it is available.
-func (l locker) Lock() {
-	l.km.Lock(l.key)
-}
-
-// Unlock this locker. It is a run-time error if already locked.
-func (l locker) Unlock() {
-	l.km.Unlock(l.key)
-}
-
-func (l locker) TryLock() bool {
-	return l.km.TryLock(l.key)
-}
-
-// Return a object which implement sync.Locker interface
-// A Locker represents an object that can be locked and unlocked.
-func (km Kmutex) Locker(key interface{}) Locker {
-	return locker{
-		key: key,
-		km:  &km,
+	ok = kl.lock.TryLock()
+	if ok {
+		kl.ln++
 	}
+	return
 }
