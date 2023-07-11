@@ -43,10 +43,10 @@ func (krw *krwmutex) Lock(key any) {
 		kl = krw.p.Get().(*krwlock)
 		krw.m[key] = kl
 	}
-	kl.ln++
 	krw.l.Unlock()
 
 	kl.lock.Lock()
+	kl.ln++
 }
 
 func (krw *krwmutex) RLock(key any) {
@@ -56,10 +56,10 @@ func (krw *krwmutex) RLock(key any) {
 		kl = krw.p.Get().(*krwlock)
 		krw.m[key] = kl
 	}
-	kl.rwln++
 	krw.l.Unlock()
 
 	kl.lock.RLock()
+	kl.rwln++
 }
 
 type rlocker struct {

@@ -56,10 +56,10 @@ func (km *kmutex) Lock(key any) {
 		kl = km.p.Get().(*klock)
 		km.m[key] = kl
 	}
-	kl.ln++
 	km.l.Unlock()
 
 	kl.lock.Lock()
+	kl.ln++
 }
 
 func (km *kmutex) TryLock(key any) (ok bool) {
