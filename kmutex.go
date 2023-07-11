@@ -4,6 +4,7 @@ import "sync"
 
 type kmutex struct {
 	l sync.Locker
+	p *sync.Pool
 	m map[any]*klock
 }
 
@@ -15,6 +16,13 @@ type klock struct {
 func DefaultKmutex() *kmutex {
 	return &kmutex{
 		l: &sync.Mutex{},
+		p: &sync.Pool{
+			New: func() any {
+				return &klock{
+					lock: &sync.Mutex{},
+				}
+			},
+		},
 		m: make(map[any]*klock),
 	}
 }
@@ -34,6 +42,7 @@ func (km *kmutex) Unlock(key any) {
 	if ok {
 		kl.ln--
 		if kl.ln == 0 {
+			km.p.Put(kl)
 			delete(km.m, key)
 		}
 		kl.lock.Unlock()
@@ -44,10 +53,7 @@ func (km *kmutex) Lock(key any) {
 	km.l.Lock()
 	kl, ok := km.m[key]
 	if !ok {
-		kl = &klock{
-			ln:   0,
-			lock: &sync.Mutex{},
-		}
+		kl = km.p.Get().(*klock)
 		km.m[key] = kl
 	}
 	kl.ln++
@@ -61,10 +67,7 @@ func (km *kmutex) TryLock(key any) (ok bool) {
 	defer km.l.Unlock()
 	kl, ok := km.m[key]
 	if !ok {
-		kl = &klock{
-			ln:   0,
-			lock: &sync.Mutex{},
-		}
+		kl = km.p.Get().(*klock)
 		km.m[key] = kl
 	}
 	ok = kl.lock.TryLock()

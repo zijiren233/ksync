@@ -4,6 +4,7 @@ import "sync"
 
 type krwmutex struct {
 	l sync.Locker
+	p *sync.Pool
 	m map[any]*krwlock
 }
 
@@ -16,6 +17,13 @@ type krwlock struct {
 func DefaultKrwmutex() *krwmutex {
 	return &krwmutex{
 		l: &sync.Mutex{},
+		p: &sync.Pool{
+			New: func() any {
+				return &krwlock{
+					lock: &sync.RWMutex{},
+				}
+			},
+		},
 		m: make(map[any]*krwlock),
 	}
 }
@@ -32,9 +40,7 @@ func (krw *krwmutex) Lock(key any) {
 	krw.l.Lock()
 	kl, ok := krw.m[key]
 	if !ok {
-		kl = &krwlock{
-			lock: &sync.RWMutex{},
-		}
+		kl = krw.p.Get().(*krwlock)
 		krw.m[key] = kl
 	}
 	kl.ln++
@@ -47,9 +53,7 @@ func (krw *krwmutex) RLock(key any) {
 	krw.l.Lock()
 	kl, ok := krw.m[key]
 	if !ok {
-		kl = &krwlock{
-			lock: &sync.RWMutex{},
-		}
+		kl = krw.p.Get().(*krwlock)
 		krw.m[key] = kl
 	}
 	kl.rwln++
@@ -80,6 +84,7 @@ func (krw *krwmutex) RUnlock(key any) {
 	if ok {
 		kl.rwln--
 		if kl.ln == 0 && kl.rwln == 0 {
+			krw.p.Put(kl)
 			delete(krw.m, key)
 		}
 		kl.lock.RUnlock()
@@ -91,9 +96,7 @@ func (krw *krwmutex) TryLock(key any) (ok bool) {
 	defer krw.l.Unlock()
 	kl, ok := krw.m[key]
 	if !ok {
-		kl = &krwlock{
-			lock: &sync.RWMutex{},
-		}
+		kl = krw.p.Get().(*krwlock)
 		krw.m[key] = kl
 	}
 	ok = kl.lock.TryLock()
@@ -108,9 +111,7 @@ func (krw *krwmutex) TryRLock(key any) (ok bool) {
 	defer krw.l.Unlock()
 	kl, ok := krw.m[key]
 	if !ok {
-		kl = &krwlock{
-			lock: &sync.RWMutex{},
-		}
+		kl = krw.p.Get().(*krwlock)
 		krw.m[key] = kl
 	}
 	ok = kl.lock.TryRLock()
@@ -127,6 +128,7 @@ func (krw *krwmutex) Unlock(key any) {
 	if ok {
 		kl.ln--
 		if kl.ln == 0 && kl.rwln == 0 {
+			krw.p.Put(kl)
 			delete(krw.m, key)
 		}
 		kl.lock.Unlock()
