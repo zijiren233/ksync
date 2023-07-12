@@ -1,6 +1,8 @@
 package ksync
 
-import "sync"
+import (
+	"sync"
+)
 
 type kmutex struct {
 	l sync.Locker

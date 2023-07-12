@@ -1,3 +1,3 @@
-# kmutex
+# ksync
 
--   Synchronization primitive that allows locking individual resources by unique ID.
+-   Synchronization primitive that allows locking individual resources by unique Key.
