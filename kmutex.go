@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type kmutex struct {
+type Kmutex struct {
 	l sync.Locker
 	p *sync.Pool
 	m map[any]*klock
@@ -15,8 +15,8 @@ type klock struct {
 	n    uint64
 }
 
-func DefaultKmutex() *kmutex {
-	return &kmutex{
+func DefaultKmutex() *Kmutex {
+	return &Kmutex{
 		l: &sync.Mutex{},
 		p: &sync.Pool{
 			New: func() any {
@@ -29,7 +29,7 @@ func DefaultKmutex() *kmutex {
 	}
 }
 
-func NewKmutex(locker ...sync.Locker) *kmutex {
+func NewKmutex(locker ...sync.Locker) *Kmutex {
 	km := DefaultKmutex()
 	for _, lock := range locker {
 		km.l = lock
@@ -37,7 +37,7 @@ func NewKmutex(locker ...sync.Locker) *kmutex {
 	return km
 }
 
-func (km *kmutex) Unlock(key any) {
+func (km *Kmutex) Unlock(key any) {
 	km.l.Lock()
 	defer km.l.Unlock()
 
@@ -55,7 +55,7 @@ func (km *kmutex) Unlock(key any) {
 	kl.lock.Unlock()
 }
 
-func (km *kmutex) Lock(key any) {
+func (km *Kmutex) Lock(key any) {
 	km.l.Lock()
 	kl, ok := km.m[key]
 	if !ok {
@@ -68,7 +68,7 @@ func (km *kmutex) Lock(key any) {
 	kl.lock.Lock()
 }
 
-func (km *kmutex) TryLock(key any) (ok bool) {
+func (km *Kmutex) TryLock(key any) (ok bool) {
 	km.l.Lock()
 	defer km.l.Unlock()
 	kl, ok := km.m[key]

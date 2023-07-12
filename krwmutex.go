@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type krwmutex struct {
+type Krwmutex struct {
 	l sync.Locker
 	p *sync.Pool
 	m map[any]*krwlock
@@ -15,8 +15,8 @@ type krwlock struct {
 	n    uint64
 }
 
-func DefaultKrwmutex() *krwmutex {
-	return &krwmutex{
+func DefaultKrwmutex() *Krwmutex {
+	return &Krwmutex{
 		l: &sync.Mutex{},
 		p: &sync.Pool{
 			New: func() any {
@@ -29,7 +29,7 @@ func DefaultKrwmutex() *krwmutex {
 	}
 }
 
-func NewKrwmutex(locker ...sync.Locker) *kmutex {
+func NewKrwmutex(locker ...sync.Locker) *Kmutex {
 	km := DefaultKmutex()
 	for _, lock := range locker {
 		km.l = lock
@@ -37,7 +37,7 @@ func NewKrwmutex(locker ...sync.Locker) *kmutex {
 	return km
 }
 
-func (krw *krwmutex) Lock(key any) {
+func (krw *Krwmutex) Lock(key any) {
 	krw.l.Lock()
 
 	kl, ok := krw.m[key]
@@ -51,7 +51,7 @@ func (krw *krwmutex) Lock(key any) {
 	kl.lock.Lock()
 }
 
-func (krw *krwmutex) RLock(key any) {
+func (krw *Krwmutex) RLock(key any) {
 	krw.l.Lock()
 
 	kl, ok := krw.m[key]
@@ -65,7 +65,7 @@ func (krw *krwmutex) RLock(key any) {
 	kl.lock.RLock()
 }
 
-func (krw *krwmutex) RUnlock(key any) {
+func (krw *Krwmutex) RUnlock(key any) {
 	krw.l.Lock()
 	defer krw.l.Unlock()
 
@@ -83,7 +83,7 @@ func (krw *krwmutex) RUnlock(key any) {
 	kl.lock.RUnlock()
 }
 
-func (krw *krwmutex) TryLock(key any) (ok bool) {
+func (krw *Krwmutex) TryLock(key any) (ok bool) {
 	krw.l.Lock()
 	defer krw.l.Unlock()
 
@@ -100,7 +100,7 @@ func (krw *krwmutex) TryLock(key any) (ok bool) {
 	return
 }
 
-func (krw *krwmutex) TryRLock(key any) (ok bool) {
+func (krw *Krwmutex) TryRLock(key any) (ok bool) {
 	krw.l.Lock()
 	defer krw.l.Unlock()
 
@@ -117,7 +117,7 @@ func (krw *krwmutex) TryRLock(key any) (ok bool) {
 	return
 }
 
-func (krw *krwmutex) Unlock(key any) {
+func (krw *Krwmutex) Unlock(key any) {
 	krw.l.Lock()
 	defer krw.l.Unlock()
 
@@ -137,15 +137,15 @@ func (krw *krwmutex) Unlock(key any) {
 
 type rlocker struct {
 	key any
-	*krwmutex
+	*Krwmutex
 }
 
-func (r *rlocker) Lock()   { (*krwmutex)(r.krwmutex).RLock(r.key) }
-func (r *rlocker) Unlock() { (*krwmutex)(r.krwmutex).RUnlock(r.key) }
+func (r *rlocker) Lock()   { (*Krwmutex)(r.Krwmutex).RLock(r.key) }
+func (r *rlocker) Unlock() { (*Krwmutex)(r.Krwmutex).RUnlock(r.key) }
 
-func (krw *krwmutex) RLocker(key any) sync.Locker {
+func (krw *Krwmutex) RLocker(key any) sync.Locker {
 	return &rlocker{
 		key:      key,
-		krwmutex: krw,
+		Krwmutex: krw,
 	}
 }
