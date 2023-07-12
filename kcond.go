@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type kcond struct {
+type Kcond struct {
 	l *sync.RWMutex
 	p *sync.Pool
 	m map[any]*kc
@@ -15,8 +15,8 @@ type kc struct {
 	n    uint64
 }
 
-func DefaultKcond() *kcond {
-	return &kcond{
+func DefaultKcond() *Kcond {
+	return &Kcond{
 		l: &sync.RWMutex{},
 		p: &sync.Pool{
 			New: func() any {
@@ -29,7 +29,11 @@ func DefaultKcond() *kcond {
 	}
 }
 
-func (k *kcond) Wait(key any) {
+func NewKcond() *Kcond {
+	return DefaultKcond()
+}
+
+func (k *Kcond) Wait(key any) {
 	k.l.Lock()
 	kl, ok := k.m[key]
 	if !ok {
@@ -49,7 +53,7 @@ func (k *kcond) Wait(key any) {
 	k.l.Unlock()
 }
 
-func (k *kcond) Broadcast(key any) {
+func (k *Kcond) Broadcast(key any) {
 	k.l.RLock()
 	kl, ok := k.m[key]
 	k.l.RUnlock()
@@ -60,7 +64,7 @@ func (k *kcond) Broadcast(key any) {
 	kl.cond.Broadcast()
 }
 
-func (k *kcond) Signal(key any) {
+func (k *Kcond) Signal(key any) {
 	k.l.RLock()
 	kl, ok := k.m[key]
 	k.l.RUnlock()
