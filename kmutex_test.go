@@ -1,4 +1,4 @@
-package kmutex
+package ksync
 
 import (
 	"fmt"

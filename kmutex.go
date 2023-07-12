@@ -1,4 +1,4 @@
-package kmutex
+package ksync
 
 import "sync"
 
@@ -10,7 +10,7 @@ type kmutex struct {
 
 type klock struct {
 	lock *sync.Mutex
-	ln   uint64
+	n    uint64
 }
 
 func DefaultKmutex() *kmutex {
@@ -38,15 +38,19 @@ func NewKmutex(locker ...sync.Locker) *kmutex {
 func (km *kmutex) Unlock(key any) {
 	km.l.Lock()
 	defer km.l.Unlock()
+
 	kl, ok := km.m[key]
-	if ok {
-		kl.ln--
-		if kl.ln == 0 {
-			km.p.Put(kl)
-			delete(km.m, key)
-		}
-		kl.lock.Unlock()
+	if !ok {
+		return
 	}
+
+	kl.n--
+	if kl.n == 0 {
+		km.p.Put(kl)
+		delete(km.m, key)
+	}
+
+	kl.lock.Unlock()
 }
 
 func (km *kmutex) Lock(key any) {
@@ -56,10 +60,10 @@ func (km *kmutex) Lock(key any) {
 		kl = km.p.Get().(*klock)
 		km.m[key] = kl
 	}
+	kl.n++
 	km.l.Unlock()
 
 	kl.lock.Lock()
-	kl.ln++
 }
 
 func (km *kmutex) TryLock(key any) (ok bool) {
@@ -70,9 +74,10 @@ func (km *kmutex) TryLock(key any) (ok bool) {
 		kl = km.p.Get().(*klock)
 		km.m[key] = kl
 	}
+
 	ok = kl.lock.TryLock()
 	if ok {
-		kl.ln++
+		kl.n++
 	}
 	return
 }

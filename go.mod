@@ -1,3 +1,3 @@
-module github.com/zijiren233/kmutex
+module github.com/zijiren233/ksync
 
 go 1.19
