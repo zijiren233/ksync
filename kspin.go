@@ -4,40 +4,40 @@ import (
 	"sync"
 )
 
-type Kmutex struct {
+type Kspin struct {
 	l sync.Locker
 	p *sync.Pool
-	m map[any]*nMutex
+	m map[any]*nSpinLock
 }
 
-type nMutex struct {
-	lock *sync.Mutex
+type nSpinLock struct {
+	lock *spin
 	n    uint64
 }
 
-func DefaultKmutex() *Kmutex {
-	return &Kmutex{
+func DefaultKspin() *Kspin {
+	return &Kspin{
 		l: new(spin),
 		p: &sync.Pool{
 			New: func() any {
-				return &nMutex{
-					lock: new(sync.Mutex),
+				return &nSpinLock{
+					lock: new(spin),
 				}
 			},
 		},
-		m: make(map[any]*nMutex),
+		m: make(map[any]*nSpinLock),
 	}
 }
 
-func NewKmutex(locker ...sync.Locker) *Kmutex {
-	km := DefaultKmutex()
+func NewKspin(locker ...sync.Locker) *Kspin {
+	kl := DefaultKspin()
 	for _, lock := range locker {
-		km.l = lock
+		kl.l = lock
 	}
-	return km
+	return kl
 }
 
-func (k *Kmutex) Unlock(key any) {
+func (k *Kspin) Unlock(key any) {
 	k.l.Lock()
 	defer k.l.Unlock()
 
@@ -55,11 +55,11 @@ func (k *Kmutex) Unlock(key any) {
 	kl.lock.Unlock()
 }
 
-func (k *Kmutex) Lock(key any) {
+func (k *Kspin) Lock(key any) {
 	k.l.Lock()
 	kl, ok := k.m[key]
 	if !ok {
-		kl = k.p.Get().(*nMutex)
+		kl = k.p.Get().(*nSpinLock)
 		k.m[key] = kl
 	}
 	kl.n++
@@ -68,12 +68,12 @@ func (k *Kmutex) Lock(key any) {
 	kl.lock.Lock()
 }
 
-func (k *Kmutex) TryLock(key any) (ok bool) {
+func (k *Kspin) TryLock(key any) (ok bool) {
 	k.l.Lock()
 	defer k.l.Unlock()
 	kl, ok := k.m[key]
 	if !ok {
-		kl = k.p.Get().(*nMutex)
+		kl = k.p.Get().(*nSpinLock)
 		k.m[key] = kl
 	}
 
