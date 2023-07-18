@@ -5,22 +5,22 @@ import (
 	"sync/atomic"
 )
 
-type spin int32
+type Spin int32
 
-func NewSpin() *spin {
-	return new(spin)
+func NewSpin() *Spin {
+	return new(Spin)
 }
 
-func (s *spin) Lock() {
+func (s *Spin) Lock() {
 	for !atomic.CompareAndSwapInt32((*int32)(s), 0, 1) {
 		runtime.Gosched()
 	}
 }
 
-func (s *spin) Unlock() {
+func (s *Spin) Unlock() {
 	atomic.StoreInt32((*int32)(s), 0)
 }
 
-func (s *spin) TryLock() bool {
+func (s *Spin) TryLock() bool {
 	return atomic.CompareAndSwapInt32((*int32)(s), 0, 1)
 }

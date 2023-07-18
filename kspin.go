@@ -11,17 +11,17 @@ type Kspin struct {
 }
 
 type nSpinLock struct {
-	lock *spin
+	lock *Spin
 	n    uint64
 }
 
 func DefaultKspin() *Kspin {
 	return &Kspin{
-		l: new(spin),
+		l: new(Spin),
 		p: &sync.Pool{
 			New: func() any {
 				return &nSpinLock{
-					lock: new(spin),
+					lock: new(Spin),
 				}
 			},
 		},

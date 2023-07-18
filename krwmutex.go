@@ -17,7 +17,7 @@ type nRWMutex struct {
 
 func DefaultKrwmutex() *Krwmutex {
 	return &Krwmutex{
-		l: new(spin),
+		l: new(Spin),
 		p: &sync.Pool{
 			New: func() any {
 				return &nRWMutex{

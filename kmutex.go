@@ -17,7 +17,7 @@ type nMutex struct {
 
 func DefaultKmutex() *Kmutex {
 	return &Kmutex{
-		l: new(spin),
+		l: new(Spin),
 		p: &sync.Pool{
 			New: func() any {
 				return &nMutex{
