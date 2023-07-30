@@ -11,8 +11,18 @@ type Krwmutex struct {
 }
 
 type nRWMutex struct {
-	lock *sync.RWMutex
+	lock RWMutex
 	n    uint64
+}
+
+type RWMutex interface {
+	Lock()
+	RLock()
+	RLocker() sync.Locker
+	RUnlock()
+	TryLock() bool
+	TryRLock() bool
+	Unlock()
 }
 
 func DefaultKrwmutex() *Krwmutex {
@@ -29,10 +39,24 @@ func DefaultKrwmutex() *Krwmutex {
 	}
 }
 
-func NewKrwmutex(locker ...sync.Locker) *Kmutex {
-	km := DefaultKmutex()
-	for _, lock := range locker {
-		km.l = lock
+type KrwmutexConf func(*Krwmutex)
+
+func WithKrwmutexLocker(new func() RWMutex) KrwmutexConf {
+	return func(k *Krwmutex) {
+		k.p = &sync.Pool{
+			New: func() any {
+				return &nRWMutex{
+					lock: new(),
+				}
+			},
+		}
+	}
+}
+
+func NewKrwmutex(conf ...KrwmutexConf) *Krwmutex {
+	km := DefaultKrwmutex()
+	for _, c := range conf {
+		c(km)
 	}
 	return km
 }

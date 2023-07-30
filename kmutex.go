@@ -11,8 +11,14 @@ type Kmutex struct {
 }
 
 type nMutex struct {
-	lock *sync.Mutex
+	lock Mutex
 	n    uint64
+}
+
+type Mutex interface {
+	Lock()
+	TryLock() bool
+	Unlock()
 }
 
 func DefaultKmutex() *Kmutex {
@@ -29,10 +35,24 @@ func DefaultKmutex() *Kmutex {
 	}
 }
 
-func NewKmutex(locker ...sync.Locker) *Kmutex {
+type KmutexConf func(*Kmutex)
+
+func WithKmutexLocker(new func() Mutex) KmutexConf {
+	return func(k *Kmutex) {
+		k.p = &sync.Pool{
+			New: func() any {
+				return &nMutex{
+					lock: new(),
+				}
+			},
+		}
+	}
+}
+
+func NewKmutex(conf ...KmutexConf) *Kmutex {
 	km := DefaultKmutex()
-	for _, lock := range locker {
-		km.l = lock
+	for _, c := range conf {
+		c(km)
 	}
 	return km
 }

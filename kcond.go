@@ -29,8 +29,26 @@ func DefaultKcond() *Kcond {
 	}
 }
 
-func NewKcond() *Kcond {
-	return DefaultKcond()
+type KcondConf func(*Kcond)
+
+func WithKcondLocker(new func() sync.Locker) KcondConf {
+	return func(k *Kcond) {
+		k.p = &sync.Pool{
+			New: func() any {
+				return &kc{
+					cond: sync.NewCond(new()),
+				}
+			},
+		}
+	}
+}
+
+func NewKcond(conf ...KcondConf) *Kcond {
+	k := DefaultKcond()
+	for _, c := range conf {
+		c(k)
+	}
+	return k
 }
 
 func (k *Kcond) Lock(key any) {
