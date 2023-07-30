@@ -43,7 +43,10 @@ func (k *Kcond) Wait(key any) {
 	kl.n++
 	k.l.Unlock()
 
+	kl.cond.L.Lock()
 	kl.cond.Wait()
+	kl.cond.L.Unlock()
+
 	k.l.Lock()
 	kl.n--
 	if kl.n == 0 {
