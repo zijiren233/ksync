@@ -12,7 +12,7 @@ func NewSpin() *Spin {
 }
 
 func (s *Spin) Lock() {
-	for !atomic.CompareAndSwapInt32((*int32)(s), 0, 1) {
+	for !s.TryLock() {
 		runtime.Gosched()
 	}
 }
