@@ -33,7 +33,7 @@ func NewKcond() *Kcond {
 	return DefaultKcond()
 }
 
-func (k *Kcond) Wait(key any) {
+func (k *Kcond) Lock(key any) {
 	k.l.Lock()
 	kl, ok := k.m[key]
 	if !ok {
@@ -44,16 +44,35 @@ func (k *Kcond) Wait(key any) {
 	k.l.Unlock()
 
 	kl.cond.L.Lock()
-	kl.cond.Wait()
+}
+
+func (k *Kcond) Unlock(key any) {
+	k.l.Lock()
+	defer k.l.Unlock()
+	kl, ok := k.m[key]
+	if !ok {
+		return
+	}
+
 	kl.cond.L.Unlock()
 
-	k.l.Lock()
 	kl.n--
 	if kl.n == 0 {
 		k.p.Put(kl)
 		delete(k.m, key)
 	}
+}
+
+func (k *Kcond) Wait(key any) {
+	k.l.Lock()
+	kl, ok := k.m[key]
+	if !ok {
+		kl = k.p.Get().(*kc)
+		k.m[key] = kl
+	}
 	k.l.Unlock()
+
+	kl.cond.Wait()
 }
 
 func (k *Kcond) Broadcast(key any) {
