@@ -46,13 +46,13 @@ func (k *Kspin) Unlock(key any) {
 		return
 	}
 
+	kl.lock.Unlock()
+
 	kl.n--
 	if kl.n == 0 {
 		k.p.Put(kl)
 		delete(k.m, key)
 	}
-
-	kl.lock.Unlock()
 }
 
 func (k *Kspin) Lock(key any) {

@@ -74,13 +74,13 @@ func (k *Krwmutex) RUnlock(key any) {
 		return
 	}
 
+	kl.lock.RUnlock()
+
 	kl.n--
 	if kl.n == 0 {
 		k.p.Put(kl)
 		delete(k.m, key)
 	}
-
-	kl.lock.RUnlock()
 }
 
 func (k *Krwmutex) TryLock(key any) (ok bool) {
@@ -126,13 +126,13 @@ func (k *Krwmutex) Unlock(key any) {
 		return
 	}
 
+	kl.lock.Unlock()
+
 	kl.n--
 	if kl.n == 0 {
 		k.p.Put(kl)
 		delete(k.m, key)
 	}
-
-	kl.lock.Unlock()
 }
 
 type rlocker struct {
